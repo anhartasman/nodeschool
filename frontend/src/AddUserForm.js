@@ -1,89 +1,130 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // For navigation after form submission
+import { TextField, Button, Grid, Paper, Typography, Box, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 
 const AddUserForm = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
-    const [roles, setRoles] = useState([]); // All available roles
-    const [selectedRoles, setSelectedRoles] = useState([]); // Selected roles
+    const [roles, setRoles] = useState([]); // To store selected roles
+    const [availableRoles, setAvailableRoles] = useState([]); // To store available roles from API
+    const [error, setError] = useState(null);
+    const navigate = useNavigate(); // To navigate after submission
 
-    // Fetch roles from the server when the component mounts
+    // Fetch available roles from API (or define them statically for now)
     useEffect(() => {
-        fetch('http://localhost:4000/roles') // Assuming you have a route to fetch roles
-            .then((response) => response.json())
-            .then((data) => setRoles(data))
-            .catch((error) => console.error('Error fetching roles:', error));
-    }, []);
-
-    const handleSubmit = (event) => {
-        event.preventDefault();
-        
-        const userData = {
-            username,
-            email,
-            roles: selectedRoles // Use selected roles
+        const fetchRoles = async () => {
+            try {
+                const response = await fetch('http://localhost:4000/roles'); // Assuming roles API
+                if (!response.ok) {
+                    throw new Error('Failed to fetch roles');
+                }
+                const rolesData = await response.json();
+                setAvailableRoles(rolesData);
+            } catch (err) {
+                setError(err.message);
+            }
         };
 
-        // Post the user data to your API
-        fetch('http://localhost:4000/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(userData),
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            // Optionally, redirect or update the UI
-        })
-        .catch((error) => {
-            console.error('Error:', error);
-        });
+        fetchRoles();
+    }, []);
+
+    // Handle checkbox change for roles
+    const handleRoleChange = (event) => {
+        const roleId = event.target.value;
+        setRoles((prevRoles) =>
+            event.target.checked ? [...prevRoles, roleId] : prevRoles.filter((role) => role !== roleId)
+        );
     };
 
-    const handleRoleChange = (event) => {
-        const options = event.target.options;
-        const value = [];
-        for (let i = 0; i < options.length; i++) {
-            if (options[i].selected) {
-                value.push(options[i].value);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const userData = { username, email, roles };
+
+        try {
+            const response = await fetch('http://localhost:4000/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(userData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Error adding user');
             }
+
+            // On success, navigate to the user list page
+            navigate('/');
+        } catch (err) {
+            setError(err.message);
         }
-        setSelectedRoles(value);
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <div>
-                <label>Username:</label>
-                <input 
-                    type="text" 
-                    value={username} 
-                    onChange={(e) => setUsername(e.target.value)} 
-                    required 
-                />
-            </div>
-            <div>
-                <label>Email:</label>
-                <input 
-                    type="email" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    required 
-                />
-            </div>
-            <div>
-                <label>Roles:</label>
-                <select multiple value={selectedRoles} onChange={handleRoleChange} required>
-                    {roles.map((role) => (
-                        <option key={role._id} value={role._id}>
-                            {role.name}
-                        </option>
-                    ))}
-                </select>
-            </div>
-            <button type="submit">Add User</button>
-        </form>
+        <Paper elevation={3} style={{ padding: '20px', maxWidth: '600px', margin: '40px auto' }}>
+            <Typography variant="h5" align="center" gutterBottom>
+                Add New User
+            </Typography>
+
+            {error && (
+                <Typography color="error" align="center">
+                    {error}
+                </Typography>
+            )}
+
+            <Box component="form" onSubmit={handleSubmit} noValidate autoComplete="off">
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Username"
+                            fullWidth
+                            variant="outlined"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Email"
+                            fullWidth
+                            variant="outlined"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            type="email"
+                        />
+                    </Grid>
+
+                    {/* Roles as checkboxes */}
+                    <Grid item xs={12}>
+                        <Typography variant="subtitle1">Select Roles:</Typography>
+                        <FormGroup row>
+                            {availableRoles.map((role) => (
+                                <FormControlLabel
+                                    key={role._id}
+                                    control={
+                                        <Checkbox
+                                            value={role._id}
+                                            onChange={handleRoleChange}
+                                            checked={roles.includes(role._id)}
+                                        />
+                                    }
+                                    label={role.name}
+                                />
+                            ))}
+                        </FormGroup>
+                    </Grid>
+
+                    <Grid item xs={12} style={{ textAlign: 'center' }}>
+                        <Button type="submit" variant="contained" color="primary">
+                            Submit
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Box>
+        </Paper>
     );
 };
 

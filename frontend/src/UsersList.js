@@ -1,63 +1,82 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom'; // Assuming you're using react-router
+import { Link } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Typography, Button, Box } from '@mui/material';
+
 const UsersList = () => {
     const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true); // To track loading state
-    const [error, setError] = useState(null); // To track any error
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetch('http://localhost:4000/users')
-            .then((response) => {
+        const fetchUsers = async () => {
+            try {
+                const response = await fetch('http://localhost:4000/users');
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                return response.json();
-            })
-            .then((data) => {
+                const data = await response.json();
                 setUsers(data);
-                setLoading(false);
-            })
-            .catch((error) => {
+            } catch (error) {
                 setError(error.message);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchUsers();
     }, []);
 
     if (loading) {
-        return <p>Loading...</p>; // Show loading message while fetching data
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </div>
+        );
     }
 
     if (error) {
-        return <p>Error: {error}</p>; // Show error message
+        return (
+            <Typography color="error" align="center">
+                Error: {error}
+            </Typography>
+        );
     }
 
     return (
-        <div>
-            <h1>Users List</h1>
-            <Link to="/add-user">
-                <button>Add User</button>
-            </Link>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Roles</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((user) => (
-                        <tr key={user._id}>
-                            <td>
-                                <Link to={`/user/${user._id}`}>{user.username}</Link>
-                            </td>
-                            <td>{user.email}</td>
-                            <td>{user.roleDetails.map((role) => role.name).join(', ')}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <Box sx={{ padding: '24px' }}>
+            <Typography variant="h4" gutterBottom align="center">
+                Users List
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                <Link to="/add-user">
+                    <Button variant="contained" color="primary">
+                        Add User
+                    </Button>
+                </Link>
+            </Box>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Username</TableCell>
+                            <TableCell>Email</TableCell>
+                            <TableCell>Roles</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {users.map((user) => (
+                            <TableRow key={user._id}>
+                                <TableCell>
+                                    <Link to={`/user/${user._id}`}>{user.username}</Link>
+                                </TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell>{user.roleDetails.map((role) => role.name).join(', ')}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Box>
     );
 };
 
