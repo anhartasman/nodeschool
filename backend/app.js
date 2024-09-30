@@ -10,28 +10,44 @@ app.use(express.json());
 app.use(cors());
 
 // Function to add a new user
-async function addUser(db, userData) {
+async function saveUser(db, userData, userId = null) {
     try {
-        // Hash the password before saving
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
+        // Hash the password before saving (only if adding a new user or if password is provided)
+        let hashedPassword = null;
+        if (userData.password) {
+            hashedPassword = await bcrypt.hash(userData.password, 10);
+        }
 
         // Convert roles to ObjectId if they are not already
         const roleIds = userData.roles.map(roleId => new ObjectId(roleId));
 
-        // Create a new user object
-        const newUser = {
+        // Create the user object with roles as an array of strings
+        const user = {
             username: userData.username,
             email: userData.email,
-            password: hashedPassword,
-            roles: roleIds   // This should be an array of role IDs
+            roles: roleIds // This should be an array of role strings, e.g., ['admin', 'editor']
         };
 
-        // Insert the new user into the 'users' collection
-        const result = await db.collection('users').insertOne(newUser);
+        // Add the hashed password if it was provided
+        if (hashedPassword) {
+            user.password = hashedPassword;
+        }
 
-        return result; // Return the result of the insertion
+        let result;
+        if (userId) {
+            // If userId is provided, update the existing user
+            result = await db.collection('users').updateOne(
+                { _id: new ObjectId(userId) }, // Update by userId
+                { $set: user }
+            );
+        } else {
+            // Otherwise, insert a new user
+            result = await db.collection('users').insertOne(user);
+        }
+
+        return result; // Return the result of insertion or update
     } catch (err) {
-        throw new Error('Error adding user: ' + err);
+        throw new Error('Error saving user: ' + err);
     }
 }
 
@@ -87,7 +103,7 @@ async function startServer() {
                 }
 
                 // Add the user to the database
-                const result = await addUser(db, { username, email, password, roles });
+                const result = await saveUser(db, { username, email, password, roles });
 
                 // Return a success message
                 res.status(201).json({ message: 'User added successfully', userId: result.insertedId });
@@ -95,6 +111,45 @@ async function startServer() {
                 res.status(500).json({ message: err.message });
             }
         });
+        // PUT route to edit a user by ID
+        app.put('/users/:id', async (req, res) => {
+            try {
+                const db = await connectToDatabase(); // Assuming `connectToDatabase` is your DB connection function
+                const { id } = req.params;
+                const { username, email, password, roles } = req.body;
+
+                // Basic validation
+                if (!username || !email || !roles || !Array.isArray(roles)) {
+                    return res.status(400).json({ message: 'All fields are required and roles must be an array.' });
+                }
+
+                // Create the updated user object
+                const updatedUser = {
+                    username,
+                    email,
+                    roles,
+                };
+
+                // Optionally, handle password update if provided
+                if (password) {
+                    updatedUser.password = password; // You should hash the password before storing it
+                }
+
+                const result = await saveUser(db, { username, email, roles }, id);
+
+
+                // If the user was updated, send a success message
+                if (result.modifiedCount > 0) {
+                    res.status(200).json({ message: 'User updated successfully' });
+                } else {
+                    res.status(404).json({ message: 'User not found or no changes made' });
+                }
+            } catch (err) {
+                res.status(500).json({ message: err.message });
+            }
+        });
+
+
         app.get('/users/:id', async (req, res) => {
             const userId = req.params.id; // Get the user ID from the route parameter
             try {

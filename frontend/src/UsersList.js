@@ -58,19 +58,27 @@ const UsersList = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
+                            <TableCell>No</TableCell>
                             <TableCell>Username</TableCell>
                             <TableCell>Email</TableCell>
                             <TableCell>Roles</TableCell>
+                            <TableCell>Edit</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {users.map((user) => (
+                        {users.map((user, index) => (
                             <TableRow key={user._id}>
+                                <TableCell>{index + 1}</TableCell> {/* Display row number */}
                                 <TableCell>
                                     <Link to={`/user/${user._id}`}>{user.username}</Link>
                                 </TableCell>
                                 <TableCell>{user.email}</TableCell>
                                 <TableCell>{user.roleDetails.map((role) => role.name).join(', ')}</TableCell>
+                                <TableCell>
+                                    <Link to={`/edit-user/${user._id}`}>
+                                        <Button variant="contained" color="secondary">Edit</Button>
+                                    </Link>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
