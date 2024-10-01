@@ -90,6 +90,29 @@ async function startServer() {
             }
         });
         
+        // DELETE route to remove a user by ID
+        app.delete('/users/:id', async (req, res) => {
+            try {
+                const db = await connectToDatabase(); // Your database connection function
+                const userId = req.params.id;
+
+                // Ensure the provided ID is a valid ObjectId
+                if (!ObjectId.isValid(userId)) {
+                    return res.status(400).json({ message: 'Invalid user ID' });
+                }
+
+                // Perform the deletion in the 'users' collection
+                const result = await db.collection('users').deleteOne({ _id: new ObjectId(userId) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).json({ message: 'User not found' });
+                }
+
+                res.status(200).json({ message: 'User deleted successfully' });
+            } catch (err) {
+                res.status(500).json({ message: 'Error deleting user: ' + err.message });
+            }
+        });
         // POST route to add a new user
         app.post('/add-user', async (req, res) => {
             try {
